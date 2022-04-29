@@ -34,7 +34,7 @@ def reset_agent(a, noise=NOISE, decay=DECAY):
 
 
 def run():
-    time = 60
+    time = 50
     yrdgain = 0
 
 
