@@ -12,15 +12,15 @@ DECAY = 0.05
 TEMPERATURE = 0
 games = 160
 plays = 60
-f_down = False
-down = 0
-distance = 40
+f_down = 0
+DOWN = 1
+DISTANCE = 40
 payoff = 0
-ytd = 10
+YTD = 10
+TIME = 60
 
 defaultout = "football_data.csv"
 offense = pyibl.Agent("Offense Agent", ["direction", "pass", "short"], default_utility=DEFAULT_UTILITY, decay=DECAY, noise=NOISE)
-#defense = pyibl.Agent("Defense Agent", [""])
 left_play = {"direction": "left", "pass": False, "run" : False, "short": False}
 right_play = {"direction": "right", "pass": False, "run" : False, "short": False} # least risky
 middle_play = {"direction": "middle", "pass": False, "run" : False, "short": False}
@@ -33,81 +33,110 @@ def reset_agent(a, noise=NOISE, decay=DECAY):
 
 
 
-def run():
-    time = 50
+def run(distance = DISTANCE, down = DOWN, ytd = YTD, time = TIME):
+
     yrdgain = 0
 
 
     for g in range(games):
         reset_agent(offense)
         offense.trace = True
-
         for t in range(1, time):# game start
+
+
+
             if t < 50: # low risk time in game
+
+
+
                 if distance in range(30, 70): #low risk location
-                    if down == 1 and ytd == 10: # most options to play
-                        #risk = play_choice(down, ytd, time, distance) # some decimal indicating risk
-                        #reward = success_payoff(risk, left_play, right_play, middle_play)
-                        if random.randint(0, 1) < .5:
-                            left_play["pass"] = True
-                            right_play["pass"] = True
-                            middle_play["pass"] = True
-                        else
-                            left_play["run"] = True
-                            right_play["run"] = True
-                            middle_play["run"] = True
-
-                        play = offense.choose(left_play, middle_play, right_play)
-                        if play["direction"] == "left":
-
-                            payoff = random.randint(1, 10)
-                            offense.respond(left_play)
 
 
+                    for d in range(4):
+                        if down == 1 and ytd == 10: # most options to play
+                            #risk = play_choice(down, ytd, time, distance) # some decimal indicating risk
+                            #reward = success_payoff(risk, left_play, right_play, middle_play)
+                            if random.randint(0, 1) < .6:
+                                left_play["pass"] = True
+                                right_play["pass"] = True
+                                middle_play["pass"] = True
+                                if random.randint(0, 1) < .7:
+                                    left_play["short"] = True
+                                    right_play["short"] = True
+                                    middle_play["short"] = True
+                            else:
+                                left_play["run"] = True
+                                right_play["run"] = True
+                                middle_play["run"] = True
 
-                            payoff = random.randint(-5, 0)
-                            offense.respond(left_play)
+                            play = offense.choose(left_play, middle_play, right_play)
+                            if play["direction"] == "left":
+                                if play["pass"] == True:
+                                    if play["short"] == True:
+                                        payoff = random.randint(-5, 10)
+                                        offense.respond(payoff)
+                                        if payoff > 0:
+                                            ytd = ytd - payoff
+                                            if ytd == 0:
+                                                f_down[d] +=1
+                                        else:
+                                            ytd = ytd + payoff
+
+                                        distance = distance + payoff
+
+                                    else:
+                                        payoff = random.randint(-5, 15)
+                                        offense.respond(left_play)
+                                        distance = distance + payoff
+                                else:
+                                    payoff = random.randint(-3, 10)
+                                    offense.respond(left_play)
+                                    distance = distance + payoff
 
 
-                        distance = distance + payoff
-                        if play["direction"] == "middle":
+                            if play["direction"] == "middle":
 
-                            payoff = random.randint(1, 10)
-                            offense.respond(middle_play)
-
-
-
-                            payoff = random.randint(-10, 0)
-                            offense.respond(middle_play)
-
-                        distance = distance + payoff
-                        if play["direction"] == "right":
-
-                            payoff = random.randint(1, 10)
-                            offense.respond(right_play)
-
+                                if play["pass"] == True:
+                                    if play["short"] == True:
+                                        payoff = random.randint(-5, 7)
+                                        offense.respond(middle_play)
+                                        distance = distance + payoff
+                                    else:
+                                        payoff = random.randint(-10, 1)
+                                        offense.respond(middle_play)
+                                        distance = distance + payoff
+                                else:
+                                    payoff = random.randint(-3, 10)
+                                    offense.respond(middle_play)
+                                    distance = distance + payoff
 
 
-                            payoff = random.randint(-2, 0)
-                            offense.respond(right_play)
+                            if play["direction"] == "right":
+
+                                if play["pass"] == True:
+                                    if play["short"] == True:
+                                        payoff = random.randint(-2, 10)
+                                        offense.respond(right_play)
+                                        distance = distance + payoff
+                                    else:
+                                        payoff = random.randint(-5, 15)
+                                        offense.respond(right_play)1
+                                        distance = distance + payoff
+                                else:
+                                    payoff = random.randint(-3, 10)
+                                    offense.respond(right_play)
+                                    distance = distance + payoff
+
+                            down += 1
+
+                        elif down == 2 and ytd in range(1, yrdgain):# no positive payoff and yard gain is none
+
+                            down += 1
+                        elif down == 3 and ytd in range(1, yrdgain): # postive payoff and yard gain is between 1 an
 
 
-                        distance = distance + payoff
-
-                        down += 1
-
-
-
-
-
-                    elif down == 2 and ytd in range(1, yrdgain):# no positive payoff and yard gain is none
-
-                        down += 1
-                    elif down == 3 and ytd in range(1, yrdgain): # postive payoff and yard gain is between 1 an
-
-
-                        down += 1
-                    elif down == 4 and ytd in range(1, yrdgain): # no payoff and yard gain exists
+                            down += 1
+                        elif down == 4 and ytd in range(1, yrdgain): # no payoff and yard gain exists
                         #success
 
 
@@ -150,6 +179,18 @@ def run():
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             else: # higher risk time in game
 
                 if distance in range(30, 70):  # low risk location
@@ -185,14 +226,6 @@ def run():
 
                     elif down == 4 and ytd in range in range(1, yrdgain)  # no payoff and yard gain exists
 
-            time-=.15
 
 
-def play_choice(down, ytd, time, distance):
-    return ((down * ytd * time)/ distance))
 
-
-def success_payoff(risk, left_play, right_play, middle_play):
-
-
-    return play_choice, reward
