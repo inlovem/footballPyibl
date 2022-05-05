@@ -19,12 +19,13 @@ YTD = 10
 TIME = 60
 
 
-defaultout = "football_data.csv"
-offense = pyibl.Agent("Offense Agent", ["direction", "pass", "short"], default_utility=DEFAULT_UTILITY, decay=DECAY, noise=NOISE)
-left_play = {"direction": "left", "pass": False, "run" : False, "short": False}
-right_play = {"direction": "right", "pass": False, "run" : False, "short": False} # least risky
-middle_play = {"direction": "middle", "pass": False, "run" : False, "short": False}
+DefaultOut = "football_data.csv"
 
+left_play = {"direction": "left", "pass_forward": False, "run_forward": False, "short": False}
+right_play = {"direction": "right", "pass_forward": False, "run_forward": False, "short": False}  # least risky
+middle_play = {"direction": "middle", "pass_forward": False, "run_forward": False, "short": False}
+offense = pyibl.Agent("Offense Agent", ["direction", "pass_forward", "short"], default_utility=DEFAULT_UTILITY,
+                      decay=DECAY, noise=NOISE)
 
 def reset_agent(a, noise=NOISE, decay=DECAY):
     a.reset(False)
@@ -33,72 +34,88 @@ def reset_agent(a, noise=NOISE, decay=DECAY):
 
 
 
-def run(distance = DISTANCE, down = DOWN, ytd = YTD, time = TIME, f_down_bool = False):
-    for g in range(games):
-        reset_agent(offense)
-        offense.trace = True
-        f_down = [0] * games
-        for t in range(1, time):# game start
-            if t < 50: # low risk time in game
-                if distance in range(30, 70): #low risk location
-                    for down in range(4):
-                        down_plays(f_down, t, distance, down, ytd, f_down_bool)
-                        if f_down_bool == True:
-                            ytd = 10
-                            break
+def run_play(distance = DISTANCE, down = DOWN, ytd = YTD, time = TIME, f_down_bool = False, output_file = DefaultOut):
 
-                # lower yards to touchdown but defense is not compact in space to cover
-                elif distance in range(70, 90):
-                    for down in range(4):
-                        down_plays(f_down, t, distance, down, ytd, f_down_bool)
-                        if f_down_bool == True:
-                            break
-                # lower yards to touchdown but defense is compact and has lowest space to cover
-                elif distance in range(90, 100):
-                    for down in range(4):
-                        down_plays(f_down, t, distance, down, ytd, f_down_bool)
 
-                        if f_down_bool == True:
-                            break
 
-                elif distance > 100:
-                        distance = DISTANCE
 
-            else: # higher risk time in game
-                if distance in range(30, 70):  # low risk location
-                    for down in range(4):
-                        down_plays(f_down, t, distance, down, ytd, f_down_bool)
-                        if f_down_bool == True:
-                            break
-                # lower yards to touchdown but defense is not compact in space to cover
-                elif distance in range(70, 90):
-                    for down in range(4):
-                        down_plays(f_down, t, distance, down, ytd, f_down_bool)
-                        if f_down_bool == True:
-                            break
-                elif distance in range(90, 100):
-                    for down in range(4):
-                        down_plays(f_down, t, distance, down, ytd, f_down_bool)
-                        if f_down_bool == True:
-                            break
-                elif distance > 100:
-                        distance = DISTANCE
+    with open(output_file, "w") as f:
+        print("Games,Time,Selected,Warning,Covered,Action,Outcome,Cumulative", file=f)
+
+        for g in range(games):
+            reset_agent(offense)
+            offense.trace = True
+            f_down = [0] * games
+            for t in range(1, time):# game start
+                if t < 50: # low risk time in game
+                    if distance in range(30, 70): #low risk location
+                        for down in range(4):
+                            down_plays(f_down, t, distance, down, ytd, f_down_bool)
+                            if f_down_bool == True:
+                                ytd = 10
+                                break
+
+                    # lower yards to touchdown but defense is not compact in space to cover
+                    elif distance in range(70, 90):
+                        for down in range(4):
+                            down_plays(f_down, t, distance, down, ytd, f_down_bool)
+                            if f_down_bool == True:
+                                ytd = 10
+                                break
+                    # lower yards to touchdown but defense is compact and has lowest space to cover
+                    elif distance in range(90, 100):
+                        for down in range(4):
+                            down_plays(f_down, t, distance, down, ytd, f_down_bool)
+
+                            if f_down_bool == True:
+                                ytd = 10
+                                break
+
+                    elif distance > 100:
+                            distance = DISTANCE
+
+                else: # higher risk time in game
+                    if distance in range(30, 70):  # low risk location
+                        for down in range(4):
+                            down_plays(f_down, t, distance, down, ytd, f_down_bool)
+                            if f_down_bool == True:
+                                ytd = 10
+                                break
+                    # lower yards to touchdown but defense is not compact in space to cover
+                    elif distance in range(70, 90):
+                        for down in range(4):
+                            down_plays(f_down, t, distance, down, ytd, f_down_bool)
+                            if f_down_bool == True:
+                                ytd = 10
+                                break
+                    elif distance in range(90, 100):
+                        for down in range(4):
+                            down_plays(f_down, t, distance, down, ytd, f_down_bool)
+                            if f_down_bool == True:
+                                ytd = 10
+                                break
+                    elif distance > 100:
+                            distance = DISTANCE
+
+                    print(f"{p + 1},{t + 1},{selected},{int(warned)}, {int(covered)},{int(attack)}, {payoff}, {total}",file=f)
+
+    return {"covered": (covered_attack / (TRIALS * PARTICIPANTS)), "uncovered":(uncovered_attack / (TRIALS * PARTICIPANTS)), "withdraw": (withdraw / (TRIALS * PARTICIPANTS))}
 
 
 def down_plays(f_down, t, distance, down, ytd, f_down_bool = False):
-    # figure out lieklihoods of pass to run in time and distance
-    if random.randint(0, 1) < .5:
-        left_play["pass"] = True
-        right_play["pass"] = True
-        middle_play["pass"] = True
-        if random.randint(0, ytd) < .6:
+    # figure out likelihoods of pass to run in time and distance
+    if random.randint(0, 1) < .6:
+        left_play["pass_forward"] = True
+        right_play["pass_forward"] = True
+        middle_play["pass_forward"] = True
+        if random.randint(0, ytd) < .7:
             left_play["short"] = True
             right_play["short"] = True
             middle_play["short"] = True
     else:
-        left_play["run"] = True
-        right_play["run"] = True
-        middle_play["run"] = True
+        left_play["run_forward"] = True
+        right_play["run_forward"] = True
+        middle_play["run_forward"] = True
     play = offense.choose(left_play, middle_play, right_play)
     # start of all left plays
 
@@ -107,7 +124,7 @@ def down_plays(f_down, t, distance, down, ytd, f_down_bool = False):
 
     if play["direction"] == "left":
         # start of left pass plays
-        if play["pass"] == True:
+        if play["pass_forward"] == True:
             if play["short"] == True:  # short left  pass
                 payoff = random.randint(-5, 10)  # moderate risk payoff
                 offense.respond(payoff * t)
@@ -166,118 +183,145 @@ def down_plays(f_down, t, distance, down, ytd, f_down_bool = False):
 
 
     if play["direction"] == "middle":
-        # start of middle  pass plays
-        if play["pass"] == True:
+        # start of middle pass plays
+        if play["pass_forward"] == True:
             if play["short"] == True:  # short left  pass
-                payoff = random.randint(-5, 10)  # moderate risk payoff
+                payoff = random.randint(-10, 10)  # moderate risk payoff
                 offense.respond(payoff * t)
-                if payoff > 0:
+                if payoff > 0:  # forward movement
                     ytd = ytd - payoff
                     distance = distance + payoff
-                    if ytd != 0:
-                        return f_down, distance, down, ytd
-                    else:
+                    if ytd > 0:
+                        return f_down, distance, down, ytd, f_down_bool
+                    else:  # first down achieved
                         f_down[down] += 1
                         f_down_bool = True
                         return f_down, distance, down, ytd, f_down_bool
-                else:
-                    ytd = ytd + abs(payoff)  # if the first down has not occurred, the payoff is taken from the yards to first down
+                else:  # negative forward movement
+                    ytd = ytd + abs(
+                        payoff)  # if the first down has not occurred, the payoff is taken from the yards to first down
                     distance = distance + payoff  # distance on the field
-                    return f_down, distance, down, ytd
-            else:  # long left  pass
-                payoff = random.randint(-15, 10)  # higher risk payoff
+                    return f_down, distance, down, ytd, f_down_bool
+
+            else:  # long middle pass
+                payoff = random.randint(-25, 10)  # higher risk payoff
                 offense.respond(payoff * t)
                 distance = distance + payoff
                 if payoff > 0:
                     ytd = ytd - payoff
                     distance = distance + payoff
-                    if ytd != 0:
+                    if ytd > 0:
                         return f_down, distance, down, ytd
                     else:
                         f_down[down] += 1
                         f_down_bool = True
                         return f_down, distance, down, ytd, f_down_bool
                 else:
-                    ytd = ytd + abs(payoff)  # if the first down has not occurred, the payoff is taken from the yards to first down
+                    ytd = ytd + abs(
+                        payoff)  # if the first down has not occurred, the payoff is taken from the yards to first down
                     distance = distance + payoff  # distance on the field
                     return f_down, distance, down, ytd
-        # start of middle rush plays
+
+        # start of middle side rush plays
         else:
-            payoff = random.randint(-2, 7)  # lower risk payoff
-            offense.respond(payoff * t)
+            payoff = random.randint(-2, 4)  # lower risk payoff
+            offense.respond(payoff + t)
             if payoff > 0:
                 ytd = ytd - payoff
                 distance = distance + payoff
-                if ytd != 0:
+                if ytd > 0:
                     return f_down, distance, down, ytd
                 else:
                     f_down[down] += 1
                     f_down_bool = True
                     return f_down, distance, down, ytd, f_down_bool
             else:
-                ytd = ytd + abs(payoff) # if the first down has not occurred, the payoff is taken from the yards to first down
+                ytd = ytd + abs(
+                    payoff)  # if the first down has not occurred, the payoff is taken from the yards to first down
                 distance = distance + payoff  # distance on the field
                 return f_down, distance, down, ytd
 
 
 
-
-
+    # start of all right plays
 
     if play["direction"] == "right":
-        # start of left pass plays
-        if play["pass"] == True:
+        # start of right pass plays
+        if play["pass_forward"] == True:
             if play["short"] == True:  # short left  pass
-                payoff = random.randint(-5, 10)  # moderate risk payoff
+                payoff = random.randint(-2, 10)  # moderate risk payoff
                 offense.respond(payoff * t)
-                if payoff > 0:
+                if payoff > 0:  # forward movement
                     ytd = ytd - payoff
                     distance = distance + payoff
-                    if ytd != 0:
-                        return f_down, distance, down, ytd
-                    else:
+                    if ytd > 0:
+                        return f_down, distance, down, ytd, f_down_bool
+                    else:  # first down achieved
                         f_down[down] += 1
                         f_down_bool = True
                         return f_down, distance, down, ytd, f_down_bool
-                else:
-                    ytd = ytd + abs(payoff)  # if the first down has not occurred, the payoff is taken from the yards to first down
+                else:  # negative forward movement
+                    ytd = ytd + abs(
+                        payoff)  # if the first down has not occurred, the payoff is taken from the yards to first down
                     distance = distance + payoff  # distance on the field
-                    down += 1
-                    return f_down, distance, down, ytd
-            else:  # long left  pass
-                payoff = random.randint(-15, 10)  # higher risk payoff
+                    return f_down, distance, down, ytd, f_down_bool
+
+            else:  # long right  pass
+                payoff = random.randint(-15, 15)  # higher risk payoff
                 offense.respond(payoff * t)
                 distance = distance + payoff
                 if payoff > 0:
                     ytd = ytd - payoff
                     distance = distance + payoff
-                    if ytd != 0:
+                    if ytd > 0:
                         return f_down, distance, down, ytd
                     else:
                         f_down[down] += 1
                         f_down_bool = True
                         return f_down, distance, down, ytd, f_down_bool
                 else:
-                    ytd = ytd + abs(payoff)  # if the first down has not occurred, the payoff is taken from the yards to first down
+                    ytd = ytd + abs(
+                        payoff)  # if the first down has not occurred, the payoff is taken from the yards to first down
                     distance = distance + payoff  # distance on the field
-                    down += 1
                     return f_down, distance, down, ytd
-        # start of left side rush plays
+
+        # start of right side rush plays
         else:
-            payoff = random.randint(-2, 7)  # lower risk payoff
-            offense.respond(payoff * t)
+            payoff = random.randint(-2, 10)  # lower risk payoff
+            offense.respond(payoff + t)
             if payoff > 0:
                 ytd = ytd - payoff
                 distance = distance + payoff
-                if ytd != 0:
+                if ytd > 0:
                     return f_down, distance, down, ytd
                 else:
                     f_down[down] += 1
                     f_down_bool = True
                     return f_down, distance, down, ytd, f_down_bool
             else:
-                ytd = ytd + abs(payoff)  # if the first down has not occurred, the payoff is taken from the yards to first down
+                ytd = ytd + abs(
+                    payoff)  # if the first down has not occurred, the payoff is taken from the yards to first down
                 distance = distance + payoff  # distance on the field
-                down += 1
                 return f_down, distance, down, ytd
 
+
+
+def main():
+    data = run_play()
+    df = pd.read_csv("football_data.csv")
+    print(df)
+    print(data)
+    action = list(data.keys())
+    values = list(data.values())
+    fig = plt.figure(figsize=(100, 100))  # may need to reset based on output size
+    plt.bar(action, values, width=0.2, color=['red', 'green', 'blue', 'yellow'])
+    plt.ylim([0.0, 100])
+    plt.ylable('unknown')
+    plt.xlable('unknown')
+    plt.legend()
+    plt.show()
+
+
+if __name__ == 'main':
+
+    main()
